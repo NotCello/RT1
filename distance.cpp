@@ -29,6 +29,13 @@ float calculateDistance() {
                      std::pow(turtle1Pose.y - turtle2Pose.y, 2));
 }
 
+void stop_turtle(ros::Publisher& turtle_pub, geometry_msgs::Twist turtle_vel) {
+    turtle_vel.linear.x = 0;
+    turtle_vel.linear.y = 0;
+    turtle_vel.angular.z = 0;
+    turtle_pub.publish(turtle_vel);
+}
+
 int main(int argc, char **argv) {
     ros::init(argc, argv, "distance_node");
     ros::NodeHandle nh;
@@ -60,9 +67,10 @@ int main(int argc, char **argv) {
                 geometry_msgs::Twist stopCmd;
 
                 if (activeTurtle == "turtle1") {
-                    turtle1Pub.publish(stopCmd);
+                    stop_turtle(turtle1_pub, turtle1_vel);
+                    
                 } else if (activeTurtle == "turtle2") {
-                    turtle2Pub.publish(stopCmd);
+                    stop_turtle(turtle2_pub, turtle2_vel);
                 }
             }
         }
