@@ -53,7 +53,8 @@ int main(int argc, char **argv) {
 
         // Invia il nome della tartaruga attiva
         activeTurtlePub.publish(activeTurtleMsg);
-
+        turtle == 1 ? turtle1_pub.publish(turtle_vel) : turtle2_pub.publish(turtle_vel);
+        
         // Pubblica il comando per 1 secondo
         ros::Rate rate(10);
         for (int i = 0; i < 10; i++) {
