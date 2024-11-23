@@ -26,6 +26,7 @@ int main(int argc, char **argv) {
     ros::Publisher turtle1Pub = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
     ros::Publisher turtle2Pub = nh.advertise<geometry_msgs::Twist>("/turtle2/cmd_vel", 10);
     ros::Publisher activeTurtlePub = nh.advertise<std_msgs::String>("/active_turtle", 10);
+    ros::Publisher activeVelocityPub = nh.advertise<geometry_msgs::Twist>("/active_velocity", 10);
 
     spawnTurtle(nh);
 
@@ -51,10 +52,12 @@ int main(int argc, char **argv) {
 
         ros::Publisher selectedPub = (turtleChoice == 1) ? turtle1Pub : turtle2Pub;
 
-        // Invia il nome della tartaruga attiva
+        // Pubblica il nome della tartaruga attiva
         activeTurtlePub.publish(activeTurtleMsg);
-        turtle == 1 ? turtle1_pub.publish(turtle_vel) : turtle2_pub.publish(turtle_vel);
-        
+
+        // Pubblica la velocità della tartaruga attiva
+        activeVelocityPub.publish(cmd);
+
         // Pubblica il comando per 1 secondo
         ros::Rate rate(10);
         for (int i = 0; i < 10; i++) {
