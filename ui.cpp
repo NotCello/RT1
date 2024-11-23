@@ -1,19 +1,8 @@
 #include "ros/ros.h"
 #include "geometry_msgs/Twist.h"
+#include "std_msgs/String.h"
 #include "turtlesim/Spawn.h"
 #include <iostream>
-#include <std_msgs/Float32.h>
-
-bool stopCommand = false; // Flag globale per fermare il controllo della tartaruga
-
-void distanceCallback(const std_msgs::Float32::ConstPtr& msg) {
-    // Aggiorna il flag di stop se il nodo distance rileva un problema
-    if (msg->data < 1.0) {
-        stopCommand = true;
-    } else {
-        stopCommand = false;
-    }
-}
 
 void spawnTurtle(ros::NodeHandle &nh) {
     ros::ServiceClient spawnClient = nh.serviceClient<turtlesim::Spawn>("/spawn");
@@ -36,19 +25,11 @@ int main(int argc, char **argv) {
 
     ros::Publisher turtle1Pub = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
     ros::Publisher turtle2Pub = nh.advertise<geometry_msgs::Twist>("/turtle2/cmd_vel", 10);
-    ros::Subscriber distanceSub = nh.subscribe("/turtle_distance", 10, distanceCallback);
+    ros::Publisher activeTurtlePub = nh.advertise<std_msgs::String>("/active_turtle", 10);
 
     spawnTurtle(nh);
 
     while (ros::ok()) {
-        ros::spinOnce();
-
-        if (stopCommand) {
-            ROS_WARN("Turtles too close. Cannot control.");
-            ros::Duration(1.0).sleep(); // Pausa per 1 secondo
-            continue;
-        }
-
         int turtleChoice;
         double linear, angular;
 
@@ -65,16 +46,22 @@ int main(int argc, char **argv) {
         cmd.linear.x = linear;
         cmd.angular.z = angular;
 
+        std_msgs::String activeTurtleMsg;
+        activeTurtleMsg.data = (turtleChoice == 1) ? "turtle1" : "turtle2";
+
         ros::Publisher selectedPub = (turtleChoice == 1) ? turtle1Pub : turtle2Pub;
 
-        // Publish the command for 1 second
+        // Invia il nome della tartaruga attiva
+        activeTurtlePub.publish(activeTurtleMsg);
+
+        // Pubblica il comando per 1 secondo
         ros::Rate rate(10);
-        for (int i = 0; i < 10 && !stopCommand; i++) {
+        for (int i = 0; i < 10; i++) {
             selectedPub.publish(cmd);
             rate.sleep();
         }
 
-        // Stop the turtle
+        // Ferma la tartaruga
         geometry_msgs::Twist stopCmd;
         selectedPub.publish(stopCmd);
     }

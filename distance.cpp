@@ -2,12 +2,13 @@
 #include "turtlesim/Pose.h"
 #include "geometry_msgs/Twist.h"
 #include "std_msgs/Float32.h"
+#include "std_msgs/String.h"
 #include <cmath>
 
-// Variabili globali per salvare le posizioni
+// Variabili globali
 turtlesim::Pose turtle1Pose, turtle2Pose;
+std::string activeTurtle = ""; // Nome della tartaruga attiva
 bool turtle1Received = false, turtle2Received = false;
-bool stopTurtle2 = false; // Flag per fermare turtle2
 
 void turtle1PoseCallback(const turtlesim::Pose::ConstPtr &msg) {
     turtle1Pose = *msg;
@@ -17,6 +18,10 @@ void turtle1PoseCallback(const turtlesim::Pose::ConstPtr &msg) {
 void turtle2PoseCallback(const turtlesim::Pose::ConstPtr &msg) {
     turtle2Pose = *msg;
     turtle2Received = true;
+}
+
+void activeTurtleCallback(const std_msgs::String::ConstPtr &msg) {
+    activeTurtle = msg->data;
 }
 
 float calculateDistance() {
@@ -30,15 +35,17 @@ int main(int argc, char **argv) {
 
     ros::Subscriber turtle1Sub = nh.subscribe("/turtle1/pose", 10, turtle1PoseCallback);
     ros::Subscriber turtle2Sub = nh.subscribe("/turtle2/pose", 10, turtle2PoseCallback);
+    ros::Subscriber activeTurtleSub = nh.subscribe("/active_turtle", 10, activeTurtleCallback);
 
     ros::Publisher distancePub = nh.advertise<std_msgs::Float32>("/turtle_distance", 10);
+    ros::Publisher turtle1Pub = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
     ros::Publisher turtle2Pub = nh.advertise<geometry_msgs::Twist>("/turtle2/cmd_vel", 10);
 
     const float distanceThreshold = 1.0;
     ros::Rate rate(10);
 
     while (ros::ok()) {
-        if (turtle1Received && turtle2Received) {
+        if (turtle1Received && turtle2Received && !activeTurtle.empty()) {
             float distance = calculateDistance();
 
             // Pubblica la distanza
@@ -46,20 +53,17 @@ int main(int argc, char **argv) {
             distanceMsg.data = distance;
             distancePub.publish(distanceMsg);
 
-            // Controlla se fermare turtle2
-            if (distance < distanceThreshold || 
-                turtle2Pose.x < 1.0 || turtle2Pose.x > 10.0 ||
-                turtle2Pose.y < 1.0 || turtle2Pose.y > 10.0) {
-                stopTurtle2 = true;
-                ROS_WARN("Stopping turtle2: too close to turtle1 or boundaries.");
-            } else {
-                stopTurtle2 = false;
-            }
+            // Ferma la tartaruga attiva se troppo vicina
+            if (distance < distanceThreshold) {
+                ROS_WARN("Stopping %s: too close to the other turtle.", activeTurtle.c_str());
 
-            // Invia comando di arresto se necessario
-            if (stopTurtle2) {
                 geometry_msgs::Twist stopCmd;
-                turtle2Pub.publish(stopCmd);
+
+                if (activeTurtle == "turtle1") {
+                    turtle1Pub.publish(stopCmd);
+                } else if (activeTurtle == "turtle2") {
+                    turtle2Pub.publish(stopCmd);
+                }
             }
         }
 
