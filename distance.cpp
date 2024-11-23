@@ -7,6 +7,7 @@
 // Variabili globali per salvare le posizioni
 turtlesim::Pose turtle1Pose, turtle2Pose;
 bool turtle1Received = false, turtle2Received = false;
+bool stopTurtle2 = false; // Flag per fermare turtle2
 
 void turtle1PoseCallback(const turtlesim::Pose::ConstPtr &msg) {
     turtle1Pose = *msg;
@@ -45,17 +46,18 @@ int main(int argc, char **argv) {
             distanceMsg.data = distance;
             distancePub.publish(distanceMsg);
 
-            // Ferma turtle2 se troppo vicina
-            if (distance < distanceThreshold) {
-                ROS_WARN("Turtles too close! Stopping turtle2.");
-                geometry_msgs::Twist stopCmd;
-                turtle2Pub.publish(stopCmd);
+            // Controlla se fermare turtle2
+            if (distance < distanceThreshold || 
+                turtle2Pose.x < 1.0 || turtle2Pose.x > 10.0 ||
+                turtle2Pose.y < 1.0 || turtle2Pose.y > 10.0) {
+                stopTurtle2 = true;
+                ROS_WARN("Stopping turtle2: too close to turtle1 or boundaries.");
+            } else {
+                stopTurtle2 = false;
             }
 
-            // Ferma turtle2 se ai confini
-            if (turtle2Pose.x < 1.0 || turtle2Pose.x > 10.0 ||
-                turtle2Pose.y < 1.0 || turtle2Pose.y > 10.0) {
-                ROS_WARN("Turtle2 near boundaries! Stopping.");
+            // Invia comando di arresto se necessario
+            if (stopTurtle2) {
                 geometry_msgs::Twist stopCmd;
                 turtle2Pub.publish(stopCmd);
             }
