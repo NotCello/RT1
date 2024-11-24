@@ -1,73 +1,66 @@
-#include "ros/ros.h"
-#include "geometry_msgs/Twist.h"
-#include "std_msgs/String.h"
-#include "turtlesim/Spawn.h"
+#include <ros/ros.h>
+#include <geometry_msgs/Twist.h>
+#include <turtlesim/Spawn.h>
 #include <iostream>
+#include <algorithm>
 
-void spawnTurtle(ros::NodeHandle &nh) {
-    ros::ServiceClient spawnClient = nh.serviceClient<turtlesim::Spawn>("/spawn");
-    turtlesim::Spawn spawnSrv;
-    spawnSrv.request.x = 5.0;
-    spawnSrv.request.y = 5.0;
-    spawnSrv.request.theta = 0.0;
-    spawnSrv.request.name = "turtle2";
+const float MAX_LINEAR = 3.0;
+const float MAX_ANGULAR = 5.0;
 
-    if (spawnClient.call(spawnSrv)) {
-        ROS_INFO("Turtle2 spawned successfully.");
-    } else {
-        ROS_ERROR("Failed to spawn turtle2.");
-    }
+std::string selectTurtle() {
+    std::string turtle;
+    do {
+        std::cout << "Enter turtle to control (turtle1 or turtle2): ";
+        std::cin >> turtle;
+    } while (turtle != "turtle1" && turtle != "turtle2");
+    return turtle;
 }
 
-int main(int argc, char **argv) {
+void sendCommand(ros::Publisher& pub) {
+    float linear, angular;
+
+    std::cout << "Enter linear velocity (-3 to 3): ";
+    std::cin >> linear;
+    linear = std::clamp(linear, -MAX_LINEAR, MAX_LINEAR);
+
+    std::cout << "Enter angular velocity (-5 to 5): ";
+    std::cin >> angular;
+    angular = std::clamp(angular, -MAX_ANGULAR, MAX_ANGULAR);
+
+    geometry_msgs::Twist cmd;
+    cmd.linear.x = linear;
+    cmd.angular.z = angular;
+    pub.publish(cmd);
+
+    ROS_INFO("Command sent: linear=%.2f, angular=%.2f", linear, angular);
+}
+
+int main(int argc, char** argv) {
     ros::init(argc, argv, "ui_node");
     ros::NodeHandle nh;
 
-    ros::Publisher turtle1Pub = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
-    ros::Publisher turtle2Pub = nh.advertise<geometry_msgs::Twist>("/turtle2/cmd_vel", 10);
-    ros::Publisher activeTurtlePub = nh.advertise<std_msgs::String>("/active_turtle", 10);
-    ros::Publisher activeVelocityPub = nh.advertise<geometry_msgs::Twist>("/active_velocity", 10);
+    // Spawn della seconda tartaruga
+    ros::ServiceClient spawn_client = nh.serviceClient<turtlesim::Spawn>("/spawn");
+    turtlesim::Spawn spawn_srv;
+    spawn_srv.request.x = 3.0;
+    spawn_srv.request.y = 5.0;
+    spawn_srv.request.name = "turtle2";
+    if (spawn_client.call(spawn_srv)) {
+        ROS_INFO("Spawned turtle2 at (3.0, 5.0)");
+    } else {
+        ROS_ERROR("Failed to spawn turtle2.");
+        return 1;
+    }
 
-    spawnTurtle(nh);
+    // Publisher per le tartarughe
+    ros::Publisher pub_t1 = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
+    ros::Publisher pub_t2 = nh.advertise<geometry_msgs::Twist>("/turtle2/cmd_vel", 10);
 
     while (ros::ok()) {
-        int turtleChoice;
-        double linear, angular;
-
-        std::cout << "Select turtle to control (1 for turtle1, 2 for turtle2): ";
-        std::cin >> turtleChoice;
-
-        std::cout << "Enter linear velocity: ";
-        std::cin >> linear;
-
-        std::cout << "Enter angular velocity: ";
-        std::cin >> angular;
-
-        geometry_msgs::Twist cmd;
-        cmd.linear.x = linear;
-        cmd.angular.z = angular;
-
-        std_msgs::String activeTurtleMsg;
-        activeTurtleMsg.data = (turtleChoice == 1) ? "turtle1" : "turtle2";
-
-        ros::Publisher selectedPub = (turtleChoice == 1) ? turtle1Pub : turtle2Pub;
-
-        // Pubblica il nome della tartaruga attiva
-        activeTurtlePub.publish(activeTurtleMsg);
-
-        // Pubblica la velocità della tartaruga attiva
-        activeVelocityPub.publish(cmd);
-
-        // Pubblica il comando per 1 secondo
-        ros::Rate rate(10);
-        for (int i = 0; i < 10; i++) {
-            selectedPub.publish(cmd);
-            rate.sleep();
-        }
-
-        // Ferma la tartaruga
-        geometry_msgs::Twist stopCmd;
-        selectedPub.publish(stopCmd);
+        std::string selected_turtle = selectTurtle();
+        ros::Publisher& pub = (selected_turtle == "turtle1") ? pub_t1 : pub_t2;
+        sendCommand(pub);
+        ros::Duration(1.0).sleep();
     }
 
     return 0;

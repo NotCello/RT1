@@ -3,81 +3,95 @@
 #include <turtlesim/Pose.h>
 #include <geometry_msgs/Twist.h>
 #include <cmath>
+#include <vector>
 
-const float SAFE_DISTANCE = 1.2;  // Soglia per evitare collisioni
-const float MIN_BOUND = 1.0;     // Limite minimo della griglia
-const float MAX_BOUND = 10.0;    // Limite massimo della griglia
+const float SAFE_DISTANCE_SQ = 1.44;  // Distanza² per evitare collisioni (1.2²)
+const float MIN_BOUND = 1.0;
+const float MAX_BOUND = 10.0;
 
-double turtle_x[2], turtle_y[2], turtle_theta[2]; // Posizioni delle tartarughe
-bool turtle_moving[2] = {false, false};           // Stato di movimento delle tartarughe
+struct TurtleState {
+    double x = 0.0, y = 0.0, theta = 0.0;
+    ros::Publisher pub;
+    std::string name;
+};
+
+std::vector<TurtleState> turtles(2);
 
 void poseCallbackTurtle1(const turtlesim::Pose::ConstPtr& msg) {
-    turtle_x[0] = msg->x;
-    turtle_y[0] = msg->y;
-    turtle_theta[0] = msg->theta;
+    turtles[0].x = msg->x;
+    turtles[0].y = msg->y;
+    turtles[0].theta = msg->theta;
 }
 
 void poseCallbackTurtle2(const turtlesim::Pose::ConstPtr& msg) {
-    turtle_x[1] = msg->x;
-    turtle_y[1] = msg->y;
-    turtle_theta[1] = msg->theta;
+    turtles[1].x = msg->x;
+    turtles[1].y = msg->y;
+    turtles[1].theta = msg->theta;
 }
 
-float calculateDistance() {
-    return std::sqrt(std::pow(turtle_x[0] - turtle_x[1], 2) + std::pow(turtle_y[0] - turtle_y[1], 2));
+void stopTurtle(TurtleState& turtle) {
+    geometry_msgs::Twist stop_cmd;
+    stop_cmd.linear.x = 0.0;
+    stop_cmd.angular.z = 0.0;
+    turtle.pub.publish(stop_cmd);
 }
 
-void stopTurtle(ros::Publisher& pub) {
-    geometry_msgs::Twist stop_vel;
-    stop_vel.linear.x = 0.0;
-    stop_vel.angular.z = 0.0;
-    pub.publish(stop_vel);
+void moveTurtleBackwards(TurtleState& turtle) {
+    geometry_msgs::Twist reverse_cmd;
+    reverse_cmd.linear.x = -0.5;
+    turtle.pub.publish(reverse_cmd);
+    ros::Duration(0.2).sleep();
+    stopTurtle(turtle);
 }
 
-void reverseTurtle(int id, ros::Publisher& pub) {
-    geometry_msgs::Twist reverse_vel;
-    reverse_vel.linear.x = -0.5; // Velocità opposta per tornare indietro
-    pub.publish(reverse_vel);
-    ros::Duration(0.1).sleep(); // Breve pausa
-    stopTurtle(pub);
+float calculateSquaredDistance(const TurtleState& t1, const TurtleState& t2) {
+    return std::pow(t1.x - t2.x, 2) + std::pow(t1.y - t2.y, 2);
+}
+
+void checkBoundaries(TurtleState& turtle) {
+    if (turtle.x < MIN_BOUND || turtle.x > MAX_BOUND || turtle.y < MIN_BOUND || turtle.y > MAX_BOUND) {
+        ROS_WARN("%s is near boundary! Moving back...", turtle.name.c_str());
+        moveTurtleBackwards(turtle);
+    }
+}
+
+void timerCallback(const ros::TimerEvent&) {
+    // Calcolo della distanza²
+    float distance_sq = calculateSquaredDistance(turtles[0], turtles[1]);
+    std_msgs::Float32 distance_msg;
+    distance_msg.data = std::sqrt(distance_sq);
+    ros::NodeHandle nh;
+    auto pub_distance = nh.advertise<std_msgs::Float32>("/turtles/rel_distance", 10);
+    pub_distance.publish(distance_msg);
+
+    if (distance_sq < SAFE_DISTANCE_SQ) {
+        ROS_WARN("Turtles too close! Stopping turtle2...");
+        stopTurtle(turtles[1]);
+        moveTurtleBackwards(turtles[1]);
+    }
+
+    // Controlla i limiti per entrambe le tartarughe
+    checkBoundaries(turtles[0]);
+    checkBoundaries(turtles[1]);
 }
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "distance_node");
     ros::NodeHandle nh;
 
-    ros::Subscriber sub_pose_t1 = nh.subscribe("/turtle1/pose", 10, poseCallbackTurtle1);
-    ros::Subscriber sub_pose_t2 = nh.subscribe("/turtle2/pose", 10, poseCallbackTurtle2);
+    // Imposta i subscriber per le posizioni
+    ros::Subscriber sub_t1_pose = nh.subscribe("/turtle1/pose", 10, poseCallbackTurtle1);
+    ros::Subscriber sub_t2_pose = nh.subscribe("/turtle2/pose", 10, poseCallbackTurtle2);
 
-    ros::Publisher pub_t1 = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
-    ros::Publisher pub_t2 = nh.advertise<geometry_msgs::Twist>("/turtle2/cmd_vel", 10);
-    ros::Publisher pub_distance = nh.advertise<std_msgs::Float32>("/turtles/rel_distance", 10);
+    // Inizializza gli stati delle tartarughe
+    turtles[0].name = "turtle1";
+    turtles[0].pub = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
+    turtles[1].name = "turtle2";
+    turtles[1].pub = nh.advertise<geometry_msgs::Twist>("/turtle2/cmd_vel", 10);
 
-    ros::Rate rate(10);
-    while (ros::ok()) {
-        float distance = calculateDistance();
+    // Timer per il controllo periodico
+    ros::Timer timer = nh.createTimer(ros::Duration(0.1), timerCallback);
 
-        std_msgs::Float32 distance_msg;
-        distance_msg.data = distance;
-        pub_distance.publish(distance_msg);
-
-        if (distance < SAFE_DISTANCE) {
-            ROS_WARN("Turtles too close! Distance: %.2f", distance);
-            reverseTurtle(0, pub_t1);
-        }
-
-        // Controllo dei limiti della griglia
-        for (int i = 0; i < 2; ++i) {
-            if (turtle_x[i] < MIN_BOUND || turtle_x[i] > MAX_BOUND ||
-                turtle_y[i] < MIN_BOUND || turtle_y[i] > MAX_BOUND) {
-                ROS_WARN("Turtle %d near boundary! Stopping...", i + 1);
-                reverseTurtle(i, (i == 0 ? pub_t1 : pub_t2));
-            }
-        }
-
-        ros::spinOnce();
-        rate.sleep();
-    }
-
+    ros::spin();
     return 0;
 }
