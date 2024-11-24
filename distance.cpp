@@ -67,4 +67,24 @@ int main(int argc, char **argv) {
             // Stampa la distanza calcolata
             ROS_INFO("Distance between turtle1 and turtle2: %.2f", distance);
 
-            // Ferma la tartaru
+            // Ferma la tartaruga attiva se troppo vicina
+            if (distance < distanceThreshold) {
+                ROS_WARN("Stopping %s: too close to the other turtle.", activeTurtle.c_str());
+
+                geometry_msgs::Twist stopCmd; // Velocità zero
+
+                if (activeTurtle == "turtle1") {
+                    turtle1Pub.publish(stopCmd);
+                } else if (activeTurtle == "turtle2") {
+                    turtle2Pub.publish(stopCmd);
+                }
+            }
+        } else {
+            ROS_WARN("Waiting for turtle poses...");
+        }
+
+        rate.sleep();
+    }
+
+    return 0;
+}
