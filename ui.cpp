@@ -4,8 +4,17 @@
 #include <iostream>
 #include <algorithm>
 
+// Costanti
 const float MAX_LINEAR = 3.0;
 const float MAX_ANGULAR = 5.0;
+
+// Funzione clamp personalizzata
+template <typename T>
+T clamp(T value, T min, T max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
 
 std::string selectTurtle() {
     std::string turtle;
@@ -21,11 +30,11 @@ void sendCommand(ros::Publisher& pub) {
 
     std::cout << "Enter linear velocity (-3 to 3): ";
     std::cin >> linear;
-    linear = std::clamp(linear, -MAX_LINEAR, MAX_LINEAR);
+    linear = clamp(linear, -MAX_LINEAR, MAX_LINEAR);
 
     std::cout << "Enter angular velocity (-5 to 5): ";
     std::cin >> angular;
-    angular = std::clamp(angular, -MAX_ANGULAR, MAX_ANGULAR);
+    angular = clamp(angular, -MAX_ANGULAR, MAX_ANGULAR);
 
     geometry_msgs::Twist cmd;
     cmd.linear.x = linear;
