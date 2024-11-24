@@ -4,9 +4,11 @@
 #include "std_msgs/Float32.h"
 #include "std_msgs/String.h"
 #include <cmath>
+#include <string>
 
-// Variabili globali
+// Variabili globali per salvare i dati
 turtlesim::Pose turtle1Pose, turtle2Pose;
+geometry_msgs::Twist activeVelocity;
 std::string activeTurtle = ""; // Nome della tartaruga attiva
 bool turtle1Received = false, turtle2Received = false;
 
@@ -24,16 +26,13 @@ void activeTurtleCallback(const std_msgs::String::ConstPtr &msg) {
     activeTurtle = msg->data;
 }
 
+void activeVelocityCallback(const geometry_msgs::Twist::ConstPtr &msg) {
+    activeVelocity = *msg;
+}
+
 float calculateDistance() {
     return std::sqrt(std::pow(turtle1Pose.x - turtle2Pose.x, 2) +
                      std::pow(turtle1Pose.y - turtle2Pose.y, 2));
-}
-
-void stop_turtle(ros::Publisher& turtle_pub, geometry_msgs::Twist turtle_vel) {
-    turtle_vel.linear.x = 0;
-    turtle_vel.linear.y = 0;
-    turtle_vel.angular.z = 0;
-    turtle_pub.publish(turtle_vel);
 }
 
 int main(int argc, char **argv) {
@@ -43,6 +42,7 @@ int main(int argc, char **argv) {
     ros::Subscriber turtle1Sub = nh.subscribe("/turtle1/pose", 10, turtle1PoseCallback);
     ros::Subscriber turtle2Sub = nh.subscribe("/turtle2/pose", 10, turtle2PoseCallback);
     ros::Subscriber activeTurtleSub = nh.subscribe("/active_turtle", 10, activeTurtleCallback);
+    ros::Subscriber activeVelocitySub = nh.subscribe("/active_velocity", 10, activeVelocityCallback);
 
     ros::Publisher distancePub = nh.advertise<std_msgs::Float32>("/turtle_distance", 10);
     ros::Publisher turtle1Pub = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
@@ -53,6 +53,7 @@ int main(int argc, char **argv) {
 
     while (ros::ok()) {
         if (turtle1Received && turtle2Received && !activeTurtle.empty()) {
+            // Calcola la distanza tra le tartarughe
             float distance = calculateDistance();
 
             // Pubblica la distanza
@@ -64,14 +65,16 @@ int main(int argc, char **argv) {
             if (distance < distanceThreshold) {
                 ROS_WARN("Stopping %s: too close to the other turtle.", activeTurtle.c_str());
 
-                geometry_msgs::Twist stopCmd;
+                geometry_msgs::Twist stopCmd; // Velocità zero
 
                 if (activeTurtle == "turtle1") {
-                    stop_turtle(turtle1_pub, turtle1_vel);
-                    
+                    turtle1Pub.publish(stopCmd);
                 } else if (activeTurtle == "turtle2") {
-                    stop_turtle(turtle2_pub, turtle2_vel);
+                    turtle2Pub.publish(stopCmd);
                 }
+            } else {
+                ROS_INFO("Active Turtle: %s, Linear Velocity: %.2f, Angular Velocity: %.2f",
+                         activeTurtle.c_str(), activeVelocity.linear.x, activeVelocity.angular.z);
             }
         }
 
