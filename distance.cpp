@@ -61,6 +61,9 @@ int main(int argc, char **argv) {
             distanceMsg.data = distance;
             distancePub.publish(distanceMsg);
 
+            // Stampa la distanza calcolata
+            ROS_INFO("Distance between turtle1 and turtle2: %.2f", distance);
+
             // Ferma la tartaruga attiva se troppo vicina
             if (distance < distanceThreshold) {
                 ROS_WARN("Stopping %s: too close to the other turtle.", activeTurtle.c_str());
