@@ -15,15 +15,18 @@ bool turtle1Received = false, turtle2Received = false;
 void turtle1PoseCallback(const turtlesim::Pose::ConstPtr &msg) {
     turtle1Pose = *msg;
     turtle1Received = true;
+    ROS_INFO("Turtle1 Pose: x=%.2f, y=%.2f", turtle1Pose.x, turtle1Pose.y);
 }
 
 void turtle2PoseCallback(const turtlesim::Pose::ConstPtr &msg) {
     turtle2Pose = *msg;
     turtle2Received = true;
+    ROS_INFO("Turtle2 Pose: x=%.2f, y=%.2f", turtle2Pose.x, turtle2Pose.y);
 }
 
 void activeTurtleCallback(const std_msgs::String::ConstPtr &msg) {
     activeTurtle = msg->data;
+    ROS_INFO("Active Turtle: %s", activeTurtle.c_str());
 }
 
 void activeVelocityCallback(const geometry_msgs::Twist::ConstPtr &msg) {
@@ -52,7 +55,7 @@ int main(int argc, char **argv) {
     ros::Rate rate(10);
 
     while (ros::ok()) {
-        if (turtle1Received && turtle2Received && !activeTurtle.empty()) {
+        if (turtle1Received && turtle2Received) {
             // Calcola la distanza tra le tartarughe
             float distance = calculateDistance();
 
@@ -64,25 +67,4 @@ int main(int argc, char **argv) {
             // Stampa la distanza calcolata
             ROS_INFO("Distance between turtle1 and turtle2: %.2f", distance);
 
-            // Ferma la tartaruga attiva se troppo vicina
-            if (distance < distanceThreshold) {
-                ROS_WARN("Stopping %s: too close to the other turtle.", activeTurtle.c_str());
-
-                geometry_msgs::Twist stopCmd; // Velocità zero
-
-                if (activeTurtle == "turtle1") {
-                    turtle1Pub.publish(stopCmd);
-                } else if (activeTurtle == "turtle2") {
-                    turtle2Pub.publish(stopCmd);
-                }
-            } else {
-                ROS_INFO("Active Turtle: %s, Linear Velocity: %.2f, Angular Velocity: %.2f",
-                         activeTurtle.c_str(), activeVelocity.linear.x, activeVelocity.angular.z);
-            }
-        }
-
-        rate.sleep();
-    }
-
-    return 0;
-}
+            // Ferma la tartaru
