@@ -5,9 +5,10 @@
 #include <cmath>
 #include <vector>
 
-const float SAFE_DISTANCE_SQ = 1.44;  // Distanza² per evitare collisioni (1.2²)
-const float MIN_BOUND = 1.0;
-const float MAX_BOUND = 10.0;
+const float SAFE_DISTANCE_SQ = 1.44;  // Distanza² per evitare collisioni tra tartarughe (1.2²)
+const float SAFE_BOUNDARY = 1.5;      // Margine di sicurezza dai muri
+const float MIN_BOUND = 1.0;          // Limite minimo della griglia
+const float MAX_BOUND = 10.0;         // Limite massimo della griglia
 
 struct TurtleState {
     double x = 0.0, y = 0.0, theta = 0.0;
@@ -17,62 +18,67 @@ struct TurtleState {
 
 std::vector<TurtleState> turtles(2);
 
+// Callback per aggiornare la posizione di turtle1
 void poseCallbackTurtle1(const turtlesim::Pose::ConstPtr& msg) {
     turtles[0].x = msg->x;
     turtles[0].y = msg->y;
     turtles[0].theta = msg->theta;
 }
 
+// Callback per aggiornare la posizione di turtle2
 void poseCallbackTurtle2(const turtlesim::Pose::ConstPtr& msg) {
     turtles[1].x = msg->x;
     turtles[1].y = msg->y;
     turtles[1].theta = msg->theta;
 }
 
+// Ferma la tartaruga
 void stopTurtle(TurtleState& turtle) {
     geometry_msgs::Twist stop_cmd;
     stop_cmd.linear.x = 0.0;
+    stop_cmd.linear.y = 0.0;
     stop_cmd.angular.z = 0.0;
     turtle.pub.publish(stop_cmd);
 }
 
-void moveTurtleBackwards(TurtleState& turtle) {
-    geometry_msgs::Twist reverse_cmd;
-    reverse_cmd.linear.x = -0.5;
-    turtle.pub.publish(reverse_cmd);
-    ros::Duration(0.2).sleep();
-    stopTurtle(turtle);
+// Movimento per evitare i muri
+void avoidWalls(TurtleState& turtle, const TurtleState& other) {
+    if (turtle.x < SAFE_BOUNDARY || turtle.x > (MAX_BOUND - SAFE_BOUNDARY) ||
+        turtle.y < SAFE_BOUNDARY || turtle.y > (MAX_BOUND - SAFE_BOUNDARY)) {
+        float distance = std::sqrt(std::pow(turtle.x - other.x, 2) + std::pow(turtle.y - other.y, 2));
+        ROS_WARN("%s is near a wall! Distance to other turtle: %.2f. Adjusting position...", turtle.name.c_str(), distance);
+
+        geometry_msgs::Twist adjust_cmd;
+        adjust_cmd.linear.x = -0.5; // Indietro lungo x
+        adjust_cmd.linear.y = 0.5;  // Spostamento lungo y
+        adjust_cmd.angular.z = 1.0; // Ruota
+        turtle.pub.publish(adjust_cmd);
+
+        ros::Duration(0.2).sleep();
+        stopTurtle(turtle);
+    }
 }
 
+// Controlla se le tartarughe sono troppo vicine
 float calculateSquaredDistance(const TurtleState& t1, const TurtleState& t2) {
     return std::pow(t1.x - t2.x, 2) + std::pow(t1.y - t2.y, 2);
 }
 
-void checkBoundaries(TurtleState& turtle) {
-    if (turtle.x < MIN_BOUND || turtle.x > MAX_BOUND || turtle.y < MIN_BOUND || turtle.y > MAX_BOUND) {
-        ROS_WARN("%s is near boundary! Moving back...", turtle.name.c_str());
-        moveTurtleBackwards(turtle);
-    }
-}
-
-void timerCallback(const ros::TimerEvent&) {
-    // Calcolo della distanza²
-    float distance_sq = calculateSquaredDistance(turtles[0], turtles[1]);
-    std_msgs::Float32 distance_msg;
-    distance_msg.data = std::sqrt(distance_sq);
-    ros::NodeHandle nh;
-    auto pub_distance = nh.advertise<std_msgs::Float32>("/turtles/rel_distance", 10);
-    pub_distance.publish(distance_msg);
-
+void separateTurtles(TurtleState& t1, TurtleState& t2) {
+    float distance_sq = calculateSquaredDistance(t1, t2);
     if (distance_sq < SAFE_DISTANCE_SQ) {
-        ROS_WARN("Turtles too close! Stopping turtle2...");
-        stopTurtle(turtles[1]);
-        moveTurtleBackwards(turtles[1]);
-    }
+        float distance = std::sqrt(distance_sq);
+        ROS_WARN("Turtles too close! Distance: %.2f. Adjusting position...", distance);
 
-    // Controlla i limiti per entrambe le tartarughe
-    checkBoundaries(turtles[0]);
-    checkBoundaries(turtles[1]);
+        // Muovi la seconda tartaruga indietro e ruota
+        geometry_msgs::Twist separation_cmd;
+        separation_cmd.linear.x = -0.5; // Indietro
+        separation_cmd.angular.z = 1.0; // Ruota
+        t2.pub.publish(separation_cmd);
+
+        ros::Duration(0.2).sleep();
+        stopTurtle(t2);
+    }
 }
 
 int main(int argc, char** argv) {
@@ -89,9 +95,19 @@ int main(int argc, char** argv) {
     turtles[1].name = "turtle2";
     turtles[1].pub = nh.advertise<geometry_msgs::Twist>("/turtle2/cmd_vel", 10);
 
-    // Timer per il controllo periodico
-    ros::Timer timer = nh.createTimer(ros::Duration(0.1), timerCallback);
+    ros::Rate rate(10);
 
-    ros::spin();
+    while (ros::ok()) {
+        // Controlla che le tartarughe non siano troppo vicine
+        separateTurtles(turtles[0], turtles[1]);
+
+        // Controlla che ogni tartaruga non si avvicini ai muri
+        avoidWalls(turtles[0], turtles[1]);
+        avoidWalls(turtles[1], turtles[0]);
+
+        ros::spinOnce();
+        rate.sleep();
+    }
+
     return 0;
 }
