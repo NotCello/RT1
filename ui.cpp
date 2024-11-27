@@ -4,11 +4,11 @@
 #include <iostream>
 #include <algorithm>
 
-// Costanti
-const float MAX_LINEAR = 3.0;  // Limite massimo velocità lineare
-const float MAX_ANGULAR = 5.0; // Limite massimo velocità angolare
+// constante
+const float MAX_LINEAR = 3.0;  // maximum limit linear speed
+const float MAX_ANGULAR = 5.0; // maximum limit angular speed
 
-// Funzione clamp personalizzata
+// clamp function
 template <typename T>
 T clamp(T value, T min, T max) {
     if (value < min) return min;
@@ -16,7 +16,7 @@ T clamp(T value, T min, T max) {
     return value;
 }
 
-// Funzione per selezionare la tartaruga da controllare
+// select the turtle to control
 std::string selectTurtle() {
     std::string turtle;
     do {
@@ -26,35 +26,35 @@ std::string selectTurtle() {
     return turtle;
 }
 
-// Funzione per inviare i comandi
+// function to send commands
 void sendCommand(ros::Publisher& pub) {
     float linear_x, linear_y, angular_z;
 
-    // Input della velocità lungo x
+    //imput of the velocity along x
     std::cout << "Enter linear velocity along x (-3 to 3): ";
     std::cin >> linear_x;
     linear_x = clamp(linear_x, -MAX_LINEAR, MAX_LINEAR);
 
-    // Input della velocità lungo y
+    //imput of the velocity along x
     std::cout << "Enter linear velocity along y (-3 to 3): ";
     std::cin >> linear_y;
     linear_y = clamp(linear_y, -MAX_LINEAR, MAX_LINEAR);
 
-    // Input della velocità angolare
+    //imput of theangular velocity
     std::cout << "Enter angular velocity (-5 to 5): ";
     std::cin >> angular_z;
     angular_z = clamp(angular_z, -MAX_ANGULAR, MAX_ANGULAR);
 
-    // Creazione del comando Twist
+    // creation of the twist command
     geometry_msgs::Twist cmd;
     cmd.linear.x = linear_x;
     cmd.linear.y = linear_y;
     cmd.angular.z = angular_z;
 
-    // Pubblicazione del comando
+    // publish the command
     pub.publish(cmd);
 
-    // Log del comando inviato
+    // log the command sent
     ROS_INFO("Command sent: linear_x=%.2f, linear_y=%.2f, angular_z=%.2f", linear_x, linear_y, angular_z);
 }
 
@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "ui_node");
     ros::NodeHandle nh;
 
-    // Spawn della seconda tartaruga
+    // spawn the second turtle
     ros::ServiceClient spawn_client = nh.serviceClient<turtlesim::Spawn>("/spawn");
     turtlesim::Spawn spawn_srv;
     spawn_srv.request.x = 3.0;
@@ -76,21 +76,21 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Publisher per le tartarughe
+    // turtles publisher
     ros::Publisher pub_t1 = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
     ros::Publisher pub_t2 = nh.advertise<geometry_msgs::Twist>("/turtle2/cmd_vel", 10);
 
     while (ros::ok()) {
-        // Selezione della tartaruga
+        // select the turtle
         std::string selected_turtle = selectTurtle();
 
-        // Seleziona il publisher corrispondente
+        // select the corrispondence publisher
         ros::Publisher& pub = (selected_turtle == "turtle1") ? pub_t1 : pub_t2;
 
-        // Invio dei comandi
+        // send commands
         sendCommand(pub);
 
-        // Attendi un secondo prima del prossimo comando
+        // wait a second before the next command
         ros::Duration(1.0).sleep();
     }
 
