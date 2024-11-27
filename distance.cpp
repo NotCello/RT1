@@ -43,7 +43,7 @@ void stopTurtle(TurtleState& turtle) {
     turtle.is_moving = false;
 }
 
-// Movimento per evitare i muri
+// Movimento per evitare i muri con spostamenti minimi
 void avoidWalls(TurtleState& turtle, const TurtleState& other) {
     if (turtle.x < SAFE_BOUNDARY || turtle.x > (MAX_BOUND - SAFE_BOUNDARY) ||
         turtle.y < SAFE_BOUNDARY || turtle.y > (MAX_BOUND - SAFE_BOUNDARY)) {
@@ -51,12 +51,28 @@ void avoidWalls(TurtleState& turtle, const TurtleState& other) {
         ROS_WARN("%s is near a wall! Distance to other turtle: %.2f. Adjusting position...", turtle.name.c_str(), distance);
 
         geometry_msgs::Twist adjust_cmd;
-        adjust_cmd.linear.x = -0.5; // Indietro lungo x
-        adjust_cmd.linear.y = 0.5;  // Spostamento lungo y
-        adjust_cmd.angular.z = 1.0; // Ruota
-        turtle.pub.publish(adjust_cmd);
 
-        ros::Duration(0.2).sleep();
+        // Movimento minimo per uscire dalla zona critica
+        if (turtle.x < SAFE_BOUNDARY) {
+            adjust_cmd.linear.x = 0.2; // Avanza lungo x
+        } else if (turtle.x > (MAX_BOUND - SAFE_BOUNDARY)) {
+            adjust_cmd.linear.x = -0.2; // Indietro lungo x
+        }
+
+        if (turtle.y < SAFE_BOUNDARY) {
+            adjust_cmd.linear.y = 0.2; // Avanza lungo y
+        } else if (turtle.y > (MAX_BOUND - SAFE_BOUNDARY)) {
+            adjust_cmd.linear.y = -0.2; // Indietro lungo y
+        }
+
+        // Ruota leggermente per cambiare orientamento
+        adjust_cmd.angular.z = 0.5;
+
+        // Pubblica il comando
+        turtle.pub.publish(adjust_cmd);
+        ros::Duration(0.3).sleep();
+
+        // Ferma il movimento
         stopTurtle(turtle);
     }
 }
