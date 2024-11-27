@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 
-const float SAFE_DISTANCE_SQ = 1.2;  // distance to avoid collisions between the turtles
+const float SAFE_DISTANCE_SQ = 1.44;  // distance to avoid collisions between the turtles
 const float SAFE_BOUNDARY = 1.5;      // Safety margin from walls 
 const float MIN_BOUND = 1.0;          // minimum limit from the grid 
 const float MAX_BOUND = 10.0;         // maximum limit from the grid
