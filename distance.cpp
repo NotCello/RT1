@@ -14,6 +14,7 @@ struct TurtleState {
     double x = 0.0, y = 0.0, theta = 0.0;
     ros::Publisher pub;
     std::string name;
+    bool is_moving = false; // Indica se la tartaruga è in movimento
 };
 
 std::vector<TurtleState> turtles(2);
@@ -39,6 +40,7 @@ void stopTurtle(TurtleState& turtle) {
     stop_cmd.linear.y = 0.0;
     stop_cmd.angular.z = 0.0;
     turtle.pub.publish(stop_cmd);
+    turtle.is_moving = false;
 }
 
 // Movimento per evitare i muri
@@ -64,28 +66,38 @@ float calculateSquaredDistance(const TurtleState& t1, const TurtleState& t2) {
     return std::pow(t1.x - t2.x, 2) + std::pow(t1.y - t2.y, 2);
 }
 
-// Separa le tartarughe troppo vicine
-void separateTurtles(TurtleState& t1, TurtleState& t2) {
+// Gestisce la collisione tra tartarughe
+void handleCollision(TurtleState& t1, TurtleState& t2) {
     float distance_sq = calculateSquaredDistance(t1, t2);
     if (distance_sq < SAFE_DISTANCE_SQ) {
         float distance = std::sqrt(distance_sq);
-        ROS_WARN("Turtles too close! Distance: %.2f. Adjusting position...", distance);
+        ROS_WARN("Collision detected! Distance: %.2f. Stopping moving turtle...", distance);
 
-        // Ruota inizialmente per cambiare direzione
+        // Ferma immediatamente entrambe le tartarughe
+        if (t1.is_moving) {
+            stopTurtle(t1);
+        } else if (t2.is_moving) {
+            stopTurtle(t2);
+        }
+
+        // Dopo la collisione, separa le tartarughe
+        ROS_INFO("Separating turtles...");
         geometry_msgs::Twist separation_cmd;
-        separation_cmd.angular.z = 1.0; // Ruota
-        t2.pub.publish(separation_cmd);
-        ros::Duration(0.2).sleep();
-        
-        // Movimento lineare per aumentare la distanza
-        separation_cmd.angular.z = 0.0; // Ferma la rotazione
-        separation_cmd.linear.x = -0.5; // Allontanati lungo x
-        t2.pub.publish(separation_cmd);
-        ros::Duration(0.5).sleep();
 
+        // Muovi t1 e t2 in direzioni opposte
+        separation_cmd.linear.x = 0.5; // Avanti
+        separation_cmd.angular.z = -1.0; // Rotazione opposta
+        t1.pub.publish(separation_cmd);
+
+        separation_cmd.linear.x = -0.5; // Indietro
+        separation_cmd.angular.z = 1.0; // Rotazione
+        t2.pub.publish(separation_cmd);
+
+        ros::Duration(0.5).sleep(); // Aspetta che si allontanino
+        stopTurtle(t1);
         stopTurtle(t2);
 
-        // Controlla nuovamente la distanza
+        // Stampa la nuova distanza
         distance_sq = calculateSquaredDistance(t1, t2);
         distance = std::sqrt(distance_sq);
         ROS_INFO("New distance after adjustment: %.2f", distance);
@@ -109,8 +121,8 @@ int main(int argc, char** argv) {
     ros::Rate rate(10);
 
     while (ros::ok()) {
-        // Controlla che le tartarughe non siano troppo vicine
-        separateTurtles(turtles[0], turtles[1]);
+        // Controlla per collisioni e gestiscile
+        handleCollision(turtles[0], turtles[1]);
 
         // Controlla che ogni tartaruga non si avvicini ai muri
         avoidWalls(turtles[0], turtles[1]);
