@@ -54,19 +54,19 @@ void avoidWalls(TurtleState& turtle, const TurtleState& other) {
 
         // minimum moviment to exit from the grid
         if (turtle.x < SAFE_BOUNDARY) {
-            adjust_cmd.linear.x = 0.4; 
+            adjust_cmd.linear.x = 1; 
         } else if (turtle.x > (MAX_BOUND - SAFE_BOUNDARY)) {
-            adjust_cmd.linear.x = -0.4;ù
+            adjust_cmd.linear.x = -1;
         }
 
         if (turtle.y < SAFE_BOUNDARY) {
-            adjust_cmd.linear.y = 0.4; 
+            adjust_cmd.linear.y = 1; 
         } else if (turtle.y > (MAX_BOUND - SAFE_BOUNDARY)) {
-            adjust_cmd.linear.y = -0.4;
+            adjust_cmd.linear.y = -1;
         }
 
         //rotate a little to change the orientation
-        adjust_cmd.angular.z = 1;
+        adjust_cmd.angular.z = 0.4;
 
         //publish the comand
         turtle.pub.publish(adjust_cmd);
@@ -151,4 +151,4 @@ int main(int argc, char** argv) {
     }
 
     return 0;
-}
+} 
