@@ -1,6 +1,6 @@
 Turtlesim Collision and Wall Avoidance Project
 
-Overview
+Overview: 
 This project demonstrates the interaction of two turtles in the turtlesim simulation using ROS. The turtles are programmed to avoid walls and each other, ensuring that:
 
 They stop immediately upon collision and separate.
