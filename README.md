@@ -20,9 +20,7 @@ x or y, followed by a slight rotation to reorient itself.
 This ensures the turtles stay within the simulation bounds.
 
 User Interaction:
-The user can control either of the two turtles by setting linear velocities along 
-𝑥 and y and an angular velocity for rotation.
-
+The user can control either of the two turtles by setting linear velocities along 𝑥 and y and an angular velocity for rotation.
 
 
 
@@ -34,14 +32,7 @@ Key Features:
 
 User-Selected Turtle Control:
 The user selects which turtle (turtle1 or turtle2) to control.
-Three Independent Velocities:
-Linear velocity along the 
-𝑥 (x-axis).
-
-Linear velocity along the 
-𝑦 (y-axis).
-
-Angular velocity (rotation).
+Three Independent Velocities: Linear velocity along the 𝑥 (x-axis). Linear velocity along the 𝑦 (y-axis). Angular velocity (rotation).
 
 
 Safety Bounds:
@@ -65,22 +56,21 @@ Moves both turtles in opposite directions and logs the new distance after separa
 
 Wall Avoidance:
 Detects if a turtle is too close to the boundary.
-Executes small corrective movements along 
-𝑥 or 𝑦 and rotates slightly to keep the turtle safely within bounds.
+Executes small corrective movements along 𝑥 or 𝑦 and rotates slightly to keep the turtle safely within bounds.
+
 Workflow:
 
-Continuously monitors the positions of both turtles via /turtleX/pose.
-If a collision is detected:
-Stops the moving turtle.
-Moves both turtles away from each other.
-If a turtle approaches the boundary:
-Executes minimal adjustments to reposition it within the safe zone.
+Continuously monitors the positions of both turtles via /turtleX/pose. If a collision is detected:
+- Stops the moving turtle.
+- Moves both turtles away from each other.
+- If a turtle approaches the boundary:
+- Executes minimal adjustments to reposition it within the safe zone.
+
 Simulation Logic
 
 Collision Handling:
 
-The node calculates the squared distance between turtles.
-If the distance is below the safe threshold (1.2 units):
+The node calculates the squared distance between turtles. If the distance is below the safe threshold (1.2 units):
 The moving turtle stops immediately.
 Both turtles are moved in opposite directions to increase the separation.
 
@@ -110,12 +100,10 @@ Activates collision handling and wall avoidance mechanisms.
 
 Expected Behavior
 Collision Handling:
-When turtles collide, they stop immediately and move apart.
-The new distance between turtles is logged in the terminal.
-Wall Avoidance:
-Turtles approaching the boundary make small corrective movements and rotate to reorient themselves.
-User Control:
-The user can control a turtle's linear and angular velocities through the terminal.
+When turtles collide, they stop immediately and move apart.The new distance between turtles is logged in the terminal. 
+Wall Avoidance: Turtles approaching the boundary make small corrective movements and rotate to reorient themselves.
+
+User Control: The user can control a turtle's linear and angular velocities through the terminal.
 
 Code Structure
 ui_node.cpp:
@@ -133,12 +121,7 @@ Publishes corrective velocity commands to /turtleX/cmd_vel when:
 Turtles are too close.
 Turtles approach the boundary.
 
-Dynamic Collision Handling:
-Introduce a smoother separation mechanism for collisions.
-Leader-Follower Behavior:
-Implement a mode where one turtle follows the other while maintaining a safe distance.
-Obstacle Avoidance:
-Extend the simulation to include additional virtual obstacles.
+
 
 Conclusion
 This project highlights basic ROS concepts like publishers, subscribers, and services in an interactive simulation. The turtles are programmed with collision avoidance and wall avoidance behaviors, ensuring they operate safely within the simulation. This combination of user control and automated safety features creates a robust and engaging simulation.
