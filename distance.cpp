@@ -79,7 +79,7 @@ void avoidWalls(TurtleState& turtle, const TurtleState& other) {
 
 // compute the distance between the two turtles
 float calculateSquaredDistance(const TurtleState& t1, const TurtleState& t2) {
-    return std::pow(t1.x - t2.x, 2) + std::pow(t1.y - t2.y, 2);
+    return std::sqrt(std::pow(t1.x - t2.x, 2) + std::pow(t1.y - t2.y, 2));
 }
 
 // handles the collision between the turtles
